@@ -1,0 +1,37 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Home page
+GET    /                      		controllers.Application.index()
+GET    /addLocationUi/    controllers.Application.addLocationUi()
+GET    /geovista/					controllers.Application.geovista()
+
+#document
+GET    /api/						controllers.Application.document()
+
+# CorpusBuildingUserInterface
+GET    /corpusBuilding/						controllers.Application.corpusBuildingUi()
+
+# CodingHistoryUserInterface
+GET    /corpusBuilding/codingHistory.html						controllers.Application.codingHistoryUi()
+
+# Tasks
+GET    /api/geotxt.json           controllers.Application.geotxt(m, q)
+POST   /api/geotxtpst.json        controllers.Application.geotxtPst
+POST   /api/geotxtBatch.json      controllers.Application.geotxtBatch(d, w, z)
+POST   /api/geotxtAddEntry.json      controllers.Application.geotxtAddEntry()
+GET    /api/extract.json          controllers.Application.extract(m, q)
+GET    /api/geocode.json          controllers.Application.geocode(q)
+
+
+#To get tweet from DB (Expose Tweet) for the purpose of tweet CorpusBuilding
+GET    /corpusBuilding/tweetsRandom2/exposeCorpus.json						controllers.Application.exposeCorpus(geoCoder, role)
+
+#To submit GeoCoding results to DB (SubtmitGcResults Tweet) for the purpose of tweet CorpusBuilding
+POST   /corpusBuilding/tweetsRandom2/submitGcResults.json    	       controllers.Application.submitGcResults
+
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /geovistaresources/*file               controllers.Assets.at(path="/public", file)
+

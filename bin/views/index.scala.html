@@ -1,0 +1,450 @@
+@(message: String) @main("GeoTxt") {
+
+
+<!-- The rest of the Input area -->
+
+
+<button type="button" id="submitTextButton"
+        onclick="{
+                    fireXhr();
+                    document.getElementById('flagResultButton').disabled = false
+                }">Submit
+    Text to:</button>
+
+<select name="m" id="engineTextDropDown"
+        onchange="disableReportButton()">
+    <option value="stanfords">Geotxt w/ Stanford NER & Improved
+        Ranking</option>
+        <option value="cogcomp">Geotxt w/ CogComp NER &
+							Improved Ranking</option>
+     <option value="lingpipe">Geotxt w/ LingPipe NER &
+							Improved Ranking</option>
+    <option value="opennlp">Geotxt w/ OpenNlp NER &
+							Improved Ranking</option>
+    <option value="gates">Geotxt w/ Gate NER & Improved Ranking</option>
+    <option value="stanfordh">Geotxt w/ Stanford NER &
+        Disambiguation</option>
+    <option value="gateh">Geotxt w/ Gate NER & Disambiguation</option>
+    <option value="stanford">Geotxt w/ Stanford NER Engine</option>
+    <option value="gate">Geotxt w/ Gate NER Engine</option>
+
+
+</select>
+
+<button type="button" id="clearTextButton"
+        onclick="{
+                    clearAllContent(document.getElementById('queryText'));
+                    disableReportButton();
+                }">Clear
+    Text</button>
+
+<button type="button" id="flagResultButton"
+        onclick="{
+                    flagResults(this.getAttribute('flagVariable'));
+                    this.disabled = 'true'
+                }"
+        flagVariable="flag" disabled>Flag Results as Inaccurate</button>
+
+
+<flaggedText id="flaggedfeedback" style="display:none;color:red">
+    Flagged as inaccurate.</flaggedText>
+
+<UnflaggedText id="unflaggedfeedback" style="display:none">
+    Unflagged as inaccurate.</UnflaggedText>
+
+<br>
+<br>
+
+
+<!-- Result Raw Response View -->
+<textarea name="resultText" id="resultView"
+          style="width: 800px; height: 140px"
+          placeholder='GeoJSON response will appear here after submitting valid text that contains location names! Are there any place names missing or mis-located? If yes, Please click on "Flag Results as Inaccurate". Thanks for helping improve GeoTxt.'
+          readonly>
+    Only geographic features will be pinpointed on the map. You can see the complete GeoJSON response here after submitting text. 
+
+    You can resize this area to inspect the response. Also, you may copy the response to http://json.parser.online.fr/ for a clearer view.
+
+    This page is for demonstration purposes only! Try GeoTxt API at http://geotxt.org/v2/api/geotxt.json.
+</textarea>
+<br>
+<br>
+
+
+<!-- Map -->
+
+<div id="map" style="width: 800px; height: 400px"
+     style="visibility: hidden">Click on the features for a summary of
+    properties:</div>
+<br>
+
+
+
+<script language="javascript" type="text/javascript">
+    //Define map
+    var map = new L.Map('map');
+    var osm = new L.TileLayer('http://tile.osm.org/{z}/{x}/{y}.png');
+    map.fitWorld().addLayer(osm);
+    var layer = null;
+    //Define JSON containers
+    var responseCache = {};
+    responseCache.original = "";
+    responseCache.latest = "";
+    responseCache.latestUpdater = "";
+    //Define variable for Random ID
+    var rId = '';
+
+    //Clear the default contents of the input text area
+    function clearContents(element) {
+        var helper = "GeoTxt detects location name mentions in text and assigns";
+        if (element.value.substring(0, helper.length) == helper) {
+            element.value = '';
+        }
+    }
+
+    //Clear  contents of the input text area
+    function clearAllContent(element) {
+        element.value = '';
+    }
+
+    //deletes all the features (removes the layer)
+    function resetMap() {
+        if (layer !== null && layer !== undefined) {
+            while (map.hasLayer(layer)) {
+                map.removeLayer(layer);
+            }
+        }
+    }
+
+    function fitMapBounds() {
+        //If there is no feature to be rendered on map, then just fitWorld
+        if ((layer === null || layer === undefined) || (layer.getBounds() === undefined || layer.getBounds().getNorthEast() === undefined))
+        {
+            map.fitWorld();
+            return;
+        }
+        //If the bounding box is too small, make a bigger size, something like a mid-sized country. ALl numbers are experimental
+        else if (layer.getBounds().getNorthEast().distanceTo(layer.getBounds().getSouthWest()) < 50000)
+        {
+            var southWest = L.latLng(layer.getBounds().getSouthWest().lat - 3, layer.getBounds().getSouthWest().lng + 3);
+            var northEast = L.latLng(layer.getBounds().getNorthEast().lat + 3, layer.getBounds().getNorthEast().lng - 3);
+            var newBounds = L.latLngBounds(southWest, northEast);
+            map.fitBounds(newBounds);
+            console.log("The modified zoom logic");
+        }
+        else if (layer.getBounds().getNorthEast().distanceTo(layer.getBounds().getSouthWest()) >= 50000)
+        {
+            map.fitBounds(layer.getBounds());
+            console.log("Default getbounds");
+        }
+    }
+
+    //Makes an XMLHttpRequest object based on the browser type
+    function makeHttpObject() {
+        try {
+            return new XMLHttpRequest();
+        } catch (error) {
+        }
+        try {
+            return new ActiveXObject("Msxml2.XMLHTTP");
+        } catch (error) {
+        }
+        try {
+            return new ActiveXObject("Microsoft.XMLHTTP");
+        } catch (error) {
+        }
+        throw new Error("Could not create HTTP request object.");
+    }
+    //declares an XMLHttpRequest object for the Get Request
+    var xhr = makeHttpObject();
+    //Processes the data received after the aysonchronous HTTP GET call
+    function processResponse(response) {
+        resetMap();
+        fitMapBounds();
+        resetReportButton();
+        var TheTextBox = document.getElementById("resultView");
+        TheTextBox.value = '';
+        var fCollection = response;
+        //TODO you should hanlde GeoTxtreponse in another object
+        responseCache.original = jQuery.extend(true, {}, fCollection);
+        responseCache.latest = jQuery.extend(true, {}, fCollection);
+        renderMap(fCollection);
+        //add the raw response to the resultView textbox
+        TheTextBox.value = JSON.stringify(response);
+    }
+
+    //Fires an HTTP GET call using the XmlHttpRequest object  
+    function fireXhr() {
+        var e = document.getElementById("engineTextDropDown");
+        var m = e.options[e.selectedIndex].value;
+
+        $.ajax({
+            async: true,
+            type: "GET",
+            url: "api/geotxt.json?m="
+                    + m
+                    + "&q="
+                    + encodeURIComponent(document
+                            .getElementById('queryText').value),
+            success: function (results) {
+                processResponse(results);
+            },
+            error: function () {
+                console.log("AJAX failed.");
+                alert("AJAX failed.");
+                disableReportButton();
+                resetMap();
+                fitMapBounds();
+                document.getElementById("resultView").value = '';
+            }
+        });
+    }
+
+    //Define another XmlHttpRequest object for reporting inaacurate results. TODO It is now using GET, change to POST
+    var xhrPost = makeHttpObject();
+    //Flag or uflaf a result as inaccurate based on the passed parameter
+    function flagResults(flagUnflag) {
+        var e = document.getElementById("engineTextDropDown");
+        var m = e.options[e.selectedIndex].value;
+        //If it is a flag request, assign a new random Id. If not, use the previous one to unflag
+        if (flagUnflag === 'flag') {
+            rId = Math.floor(Math.random() * (9007199254740992));
+        }
+
+        xhrPost.open("GET",
+                "api/"
+                + flagUnflag
+                + "?rId="
+                + rId
+                + "&m="
+                + m
+                + "&q="
+                + encodeURIComponent(document
+                        .getElementById('queryText').value) + "&r="
+                + encodeURIComponent(xhr.responseText) + "&f="
+                + flagUnflag, true);
+        xhrPost.send(null);
+        xhrPost.onreadystatechange = function () {
+            switchReportButton(flagUnflag);
+        };
+
+    }
+
+    //Switches between flag and unflage modes
+    function switchReportButton(flagUnflag) {
+
+        flagResultButton.disabled = false;
+        if (xhrPost.readyState === 4 && xhrPost.status === 200) {
+
+            //var jQuerySelectorText = flagUnflag+"gedfeedback";
+            $('#flaggedfeedback').hide();
+            $('#unflaggedfeedback').hide();
+            $('#' + flagUnflag + 'gedfeedback').fadeIn(50);
+            $('#' + flagUnflag + 'gedfeedback').fadeOut(1500);
+            flagUnflag = (flagUnflag === 'flag') ? 'unflag' : 'flag';
+            flagResultButton.textContent = flagUnflag.charAt(0).toUpperCase()
+                    + flagUnflag.slice(1) + " Results as Inaccurate";
+            flagResultButton.setAttribute('flagVariable', flagUnflag);
+        }
+    }
+
+    //Resets the flag button
+    function resetReportButton() {
+        flagResultButton.textContent = "Flag Results as Inaccurate";
+        flagResultButton.setAttribute('flagVariable', 'flag');
+    }
+
+    //disables the flag button
+    function disableReportButton() {
+        flagResultButton.textContent = "Flag Results as Inaccurate";
+        flagResultButton.setAttribute('flagVariable', 'flag');
+        flagResultButton.disabled = true;
+    }
+
+    //render Map
+    function renderMap(fCollection) {
+
+        layer = L
+                .geoJson(
+                        fCollection,
+                        {
+                            onEachFeature: function (feature, layer) {
+
+                                if (feature.properties.alternates.features.length > 1) {
+
+                                    var popUpContent = "<dl><dt>Name in text:</dt>"
+                                            + "<dd><b>"
+                                            + feature.properties.name
+                                            + "</b></dd>"
+                                            + "<dt>Toponym (geolocated to):</dt>"
+                                            + "<dd><b>"
+                                            + feature.properties.toponym
+                                            + "</b></dd>"
+                                            + "<dt>Type:</dt>"
+                                            + "<dd><b>"
+                                            + feature.properties.type
+                                            + "</b></dd>"
+                                            // + "<dt>GeoNameId:</dt>"
+                                            //+ "<dd><b><a href=\"http://ws.geonames.org/get?geonameId="
+                                            //+ feature.properties.geoNameId
+                                            //+ "&style=full\" target=\"_blank\">"
+                                            //+"Alternative palces for"
+                                            //+ feature.properties.name
+                                            + '<a id="myLink" title="Alternatives" href="#" onclick="renderAlternates(\''
+                                            + encodeURIComponent(JSON
+                                                    .stringify(feature.properties.alternates))
+                                            + '\'); return false;">Alternatives</a>'
+                                            + "</a></b></dd></dl>";
+                                } else {
+
+                                    var popUpContent = "<dl><dt>Name in text:</dt>"
+                                            + "<dd><b>"
+                                            + feature.properties.name
+                                            + "</b></dd>"
+                                            + "<dt>Toponym (geolocated to):</dt>"
+                                            + "<dd><b>"
+                                            + feature.properties.toponym
+                                            + "</b></dd>"
+                                            + "<dt>Type:</dt>"
+                                            + "<dd><b>"
+                                            + feature.properties.type
+                                            + "</b></dd>"
+                                            // + "<dt>GeoNameId:</dt>"
+                                            //+ "<dd><b><a href=\"http://ws.geonames.org/get?geonameId="
+                                            //+ feature.properties.geoNameId
+                                            //+ "&style=full\" target=\"_blank\">"
+                                            //+"Alternative palces for"
+                                            //+ feature.properties.name
+                                            //+ '<a id="myLink" title="Alternatives" href="#" onclick="renderAlternates(\''
+                                            //+ encodeURIComponent(JSON
+                                            //		.stringify(feature.properties.alternates))
+                                            //+ '\'); return false;">Alternatives</a>'
+                                            + "</a></b></dd></dl>";
+                                }
+
+                                layer.bindPopup(popUpContent);
+                                var labelContent = '';
+                                if (feature.properties.name.toLowerCase() == feature.properties.toponym
+                                        .toLowerCase()) {
+                                    labelContent = "<FONT COLOR=\"#000099\">"
+                                            + feature.properties.toponym
+                                            + "</FONT>";
+                                } else {
+                                    labelContent = "<FONT COLOR=\"#000099\">"
+                                            + feature.properties.name.charAt(0)
+                                            .toUpperCase()
+                                            + feature.properties.name.slice(1)
+                                            + "</FONT>" + "<br>"
+                                            + "<FONT COLOR=\"#990033\">"
+                                            + feature.properties.toponym
+                                            + "</FONT>";
+                                }
+                                layer.bindLabel(labelContent, {
+                                    noHide: true
+                                }).addTo(map).showLabel();
+                            }
+                        }).addTo(map);
+        fitMapBounds();
+    }
+
+    //render alternates
+    function renderAlternates(alternates) {
+        resetMap();
+        var fCollection = JSON.parse(decodeURIComponent(alternates));
+        layer = L
+                .geoJson(
+                        fCollection,
+                        {
+                            /* style: function(feature) {
+                             switch (feature.properties.type) {
+                             case 'location':
+                             return {color: "#ff0000"};
+                             case 'organization':
+                             return {color: "#0000ff"};
+                             }
+                             }, */
+                            onEachFeature: function (feature, layer) {
+
+                                //var lengthOfHierarchy = feature.propoerties.hierarchy.length;
+
+                                var hierarchy = '';
+                                for (toponymInHierarchy = 0; toponymInHierarchy < feature.properties.hierarchy.features.length; toponymInHierarchy++) {
+                                    hierarchy = feature.properties.hierarchy.features[toponymInHierarchy].properties.toponym
+                                            + ", " + hierarchy;
+                                }
+
+                                var popUpContent = "<dl><dt>Name in text:</dt>"
+                                        + "<dd><b>"
+                                        + feature.properties.name
+                                        + "</b></dd>"
+                                        + "<dt>Toponym (geolocated to):</dt>"
+                                        + "<dd><b>"
+                                        + feature.properties.toponym
+                                        + "</b></dd>"
+                                        + "<dt>Hierarchy:</dt>"
+                                        + "<dd><b>"
+                                        + hierarchy
+                                        + "</b></dd>"
+                                        // + "<dt>GeoNameId:</dt>"
+                                        //+ "<dd><b><a href=\"http://ws.geonames.org/get?geonameId="
+                                        //+ feature.properties.geoNameId
+                                        //+ "&style=full\" target=\"_blank\">"
+                                        //+"Alternative palces for"
+                                        //+ feature.properties.name
+                                        + '<a id="myLink" title="Correct Candidate" href="#" onclick="pickCandidateFromMap(\''
+                                        + encodeURIComponent(JSON
+                                                .stringify(feature))
+                                        + '\'); return false;">Correct Candidate</a>'
+                                        + "</a></b></dd></dl>";
+                                layer.bindPopup(popUpContent);
+                                var labelContent = '';
+                                if (feature.properties.name.toLowerCase() == feature.properties.toponym
+                                        .toLowerCase()) {
+                                    labelContent = "<FONT COLOR=\"#000099\">"
+                                            + feature.properties.toponym
+                                            + "</FONT>";
+                                } else {
+                                    labelContent = "<FONT COLOR=\"#000099\">"
+                                            + feature.properties.name.charAt(0)
+                                            .toUpperCase()
+                                            + feature.properties.name.slice(1)
+                                            + "</FONT>" + "<br>"
+                                            + "<FONT COLOR=\"#990033\">"
+                                            + feature.properties.toponym
+                                            + "</FONT>";
+                                }
+                                layer.bindLabel(labelContent, {
+                                    noHide: true
+                                }).addTo(map).showLabel();
+                            }
+                        }).addTo(map);
+        fitMapBounds();
+    }
+
+    function pickCandidateFromMap(candidate) {
+        //reset Map
+        resetMap();
+        var pickedFeature = JSON.parse(decodeURIComponent(candidate));
+        //Rebuild the responseCach
+        //responseCache.latest
+
+        var found = false;
+        while (found === false) {
+            for (var count = 0; count < responseCache.original.features.length; count++) {
+                //TODO.. refine the check criteria. Name, GeoNameID, Position?
+                if (responseCache.original.features[count].properties.name === pickedFeature.properties.name) {
+
+                    //Preserve the alternates in the newly piccked feature
+                    pickedFeature.properties.alternates = responseCache.original.features[count].properties.alternates;
+                    //Update the latest responseCache with the pickedFeature
+                    responseCache.latest.features[count] = pickedFeature;
+                    found = true;
+                    console.log(responseCache.latest);
+                }
+            }
+        }
+
+        renderMap(responseCache.latest);
+    }
+</script>
+}

@@ -1,0 +1,55 @@
+@(title: String)(content: Html)
+
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta charset="UTF-8">
+	<title>@title</title>
+	<link rel="GeoVISTA icon" href=@routes.Assets.at( "images/favicon.ico") />
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/leafletModified.css") />
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/leaflet.labelModified.css") />
+
+	<script src=@routes.Assets.at( "javascripts/jquery-3.2.1.min.js")></script>
+	<script src=@routes.Assets.at( "javascripts/leaflet.js")></script>
+	<script src=@routes.Assets.at( "javascripts/leaflet.label.js")></script>
+</head>
+
+
+<body>
+	<!-- Header -->
+	<div class="ui-layout-north">
+		<div id="header-wrapper">
+			<a href="/"> <img id="GeoTxtLogo" src=@routes.Assets.at(
+			"images/GeoTxtLogo.png") border="0"></img>
+		</a> <a href="http://www.geovista.psu.edu/" target="_blank"> <img
+			id="geovistalogo" src=@routes.Assets.at(
+			"images/header30px.gif") border="0"></img>
+		</a>
+			<div id="messages" class="bold"></div>
+		</div>
+	</div>
+	<br>
+	<!-- Input area -->
+	<textarea name="inputText" id="queryText" style="width: 800px; height: 130px" onFocus="clearContents(this)" onkeyup="disableReportButton()">
+GeoTxt detects location name mentions in text and assigns geographic coordinates to those locations. Also, GeoTxt identifies people and organizations!
+
+Enter your text here to GeoTxt it! If you see any inaccuracy in place detection or Geolocation, please help us improve the system by clicking on "Flag Results as Inaccurate".
+
+This project is developed by the GeoVISTA center at the Pennsylvania State University. Read below.
+    </textarea>
+	<br> @content
+
+	<!-- Contact -->
+	<div id="contact" style="width: 660px; height: 20px">
+		See <a href="/api/" target="_blank">documentation.</a> For questions, please contact <a href="mailto:karimzadeh@@psu.edu?subject=GeoTxtInquiry"
+		 target="_blank">Morteza Karimzadeh</a> of the <a href="http://www.geovista.psu.edu/" target="_blank">GeoVISTA
+		Center</a>.
+	</div>
+	<br>
+</body>
+
+
+
+</html>

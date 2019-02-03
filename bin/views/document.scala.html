@@ -1,0 +1,160 @@
+ @(title: String)
+ 
+ @head(title) {
+	<div class = "container">
+		<div class="masthead">
+			<h2 class="muted">@title</h2>        
+		</div>
+		<hr>
+		<div class="row-fluid">
+			<div class = "span12">
+				<h2><a href="/" target="_blank">GeoTxt</a></h2>
+				<h5>URL:</h5> <p>http://geotxt.org/v2/api/geotxt.json</p>
+				<h5>Type:</h5> <p>GET</p>
+				<h5>Parameters:</h5>
+				<table class="table table-striped table-hover">			  		
+			  		<tbody>
+			  			<tr>
+			            	<td>m</td>
+			            	<td>Choose from two NER engines and multiple methods that yield 6 different choices: use (1) "gates" (without quotation marks) for Gate and 
+			            	our improved ranking scheme, (2) "stanfords" for Stanford NER and our improved ranking scheme, or (3) "gate" or (4) "stanford"
+			            	for default GeoNames ranking scheme with each NER engine, or (5) "gateh" or (6) "stanfordh" to enable place name disambiguation.
+			            	PLEASE NOTE that "stanfords" and "gates" are recommended methods, while "gateh" and "stanfordh" enable context-based disambiguatioin.
+			            	Use "gate" and "stanford" only if other four methods do not produce desired results. These two latter methods are not recommended.
+			            	
+			            	</td>			              
+			          	</tr>
+			  		    <tr>
+		      				<td>q</td>
+		      				<td>A UTF-8, URL-encoded search query of 3,900 characters maximum, including operators.</td>
+		    			</tr>
+			  		</tbody>  		 
+				</table>
+				<h5>Return:</h5>
+				<p>
+					The API will return a <a href="http://www.geojson.org/geojson-spec.html#feature-collection-objects" target="_blank">GeoJSON FeatureCollection</a>. The NER engines will extract three types of entities: locations,
+					organizations and persons. Locations will be Geo-located using <a href="http://www.geonames.org/" target="_blank">GeoNames</a>. Please refer to the
+					example output.
+				</p>
+				<h5>Example Request</h5>
+				<pre>http://geotxt.org/v2/api/geotxt.json?m=stanfords&q=Edwin Ernesto Rivera Gracias was in El Salvador and after voluntarily agreeing to return to the United States to face charges he was flown to Denver on Wednesday, according to the FBI. He surrendered to Salvadoran authorities and FBI agents on Tuesday, said FBI spokesman Dave Joly.</pre>
+				<div>
+					<pre>
+						<code>
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "type": "location",				//	this is a location
+                "name": "el salvador",				//	name of the location as appears in the input text
+                "toponym": "El Salvador",			//	GeoNames official name for the geo-located place
+                "geoNameId": 3585968,				//	Universal GeoNameId of the geo-located place
+                "locationType": null,				//	type of location 
+                "positions": [					//	position(s) of the entity in original query
+                    36
+                ]
+            },
+            "geometry": {					//	geometry info of the location
+                "type": "Point",
+                "coordinates": [
+                    -88.91667,
+                    13.83333
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "type": "location",
+                "name": "united states",
+                "toponym": "United States",
+                "geoNameId": 6252001,
+                "locationType": null,
+                "positions": [
+                    96
+                ]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -98.5,
+                    39.76
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "type": "location",
+                "name": "denver",
+                "toponym": "Denver",
+                "geoNameId": 5419384,
+                "locationType": null,
+                "positions": [
+                    142
+                ]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -104.9847,
+                    39.73915
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "type": "organization",				//	this is a organization
+                "name": "fbi",					//	name of the organization
+                "toponym": null,				//	GeoName official name not found 
+                "geoNameId": null,				//	GeoName ID not found 
+                "organizationType": null,			// 	type of the organization 
+                "positions": [					//	positions of the entity in original query
+                    180,
+                    230,
+                    258
+                ]
+            },
+            "geometry": null
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "type": "person",					//	this is a person
+                "name": "edwin ernesto rivera gracias",			//	name of the person
+                "personType": null,					//	type of the person
+                "gender": null,						//	gender of the person
+                "kind": null,						//	kind of the person
+                "positions": [						// 	position of the entity in original query
+                    0
+                ]
+            },
+            "geometry": null
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "type": "person",
+                "name": "dave joly",
+                "personType": null,
+                "gender": null,
+                "kind": null,
+                "positions": [
+                    272
+                ]
+            },
+            "geometry": null
+        }
+    ]
+}						</code>
+					</pre>
+				</div>			
+			</div>
+		</div>
+		
+
+	</div>
+}

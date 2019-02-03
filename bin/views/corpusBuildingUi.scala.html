@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GeoAnnotator</title>
+
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/main.css") />
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/leafletModified.css") />
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/leaflet-history-src.css") />
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/leaflet.labelModified.css") />
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/L.Control.Zoomslider.css") />
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/jquery-ui.min.css") />
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/theme.css") />
+	<link rel="stylesheet" href=@routes.Assets.at( "stylesheets/bootstrap.css") />
+
+	<script src=@routes.Assets.at( "javascripts/jquery-3.2.1.min.js")></script>
+	<script src=@routes.Assets.at( "javascripts/leaflet.js")></script>
+	<script src=@routes.Assets.at( "javascripts/leaflet.label.js")></script>
+	<script src=@routes.Assets.at( "javascripts/rangy-core.js")></script>
+	<script src=@routes.Assets.at( "javascripts/rangy-classapplier.js")></script>
+	<script src=@routes.Assets.at( "javascripts/oms.min.js")></script>
+	<script src=@routes.Assets.at( "javascripts/leaflet-history-src.js")></script>
+	<script src=@routes.Assets.at( "javascripts/L.Control.Zoomslider.js")></script>
+	<script src=@routes.Assets.at( "javascripts/utils.js")></script>
+	<script src=@routes.Assets.at( "javascripts/mapManip.js")></script>
+	<script src=@routes.Assets.at( "javascripts/textManip.js")></script>
+	<script src=@routes.Assets.at( "javascripts/geoCodingEval.js")></script>
+	<script src=@routes.Assets.at( "javascripts/he.js")></script>
+	<script src=@routes.Assets.at( "javascripts/jquery-ui.min.js")></script>
+	<script src=@routes.Assets.at( "javascripts/bootstrap.js")></script>
+	<script src=@routes.Assets.at( "javascripts/corpusBuilding.js")></script>
+</head>
+
+<body>
+	<b>GeoAnnotator </b>
+	<!-- Header -->
+	<!-- <div class="ui-layout-north">
+	<div id="header-wrapper">
+		<a href="/"> <img id="GeoTxtLogo" src=@routes.Assets.at(
+			"images/GeoTxtLogo.png") border="0"></img>
+		</a> <a href="http://www.geovista.psu.edu/" target="_blank"> <img
+			id="geovistalogo" src=@routes.Assets.at(
+			"images/header30px.gif") border="0"></img>
+		</a> 
+		<div id="messages" class="bold"></div>
+	</div>
+</div>-->
+	<div id="pageDiv" class="container-fluid">
+		<div class="row">
+			<div id="loadingImg"></div>
+			<div id="rightPaneDiv" class="col-md-7">
+
+				<button type="button" id="runThroughGeoTxtBtn" class="btn btn-warning" onclick="fireXhr(activeInputText, true, true);">Make
+					an Initial Annotation Guess</button>
+				<button type="button" id="resetAnnotation" class="btn btn-warning" onclick="textManip.resetAnnotations();">Reset Highlights and Locations</button>
+				<button type="button" id="highlightBtn" class="btn btn-warning" onclick="getSelectedRange(activeInputText,'highlight');">Highlight</button>
+				<button type="button" id="unhighlightBtn" class="btn btn-warning" onclick="getSelectedRange(activeInputText,'unhighlight');">Unhighlight</button>
+				<button type="button" id="removeHighlightBtn" class="btn btn-danger" onclick="resetHighlights(activeInputText, true);">Remove
+					All Highlights</button>
+				<button type="button" id="undoBtn" class="btn btn-primary" title="CTRL+Z" onclick="utils.undoLast(activeInputText);">Undo <b>&#9100;</b></button>
+
+				<p>
+					<b> Article Title:</b>
+				</p>
+				<div id="0TextDiv" class="workingDiv">Select a GeoCoder Name and click on Get Document to start geocoding.</div>
+
+				<br>
+				<button type="button" id="previousInputTextBtn" class="btn btn-primary" onclick="activateInputItem(activeInputText-1);">
+					&#9650; See Title On the Map & Activate Title Highlighting &#9650;</button>
+				<button type="button" id="nextInputTextBtn" class="btn btn-primary" onclick="activateInputItem(activeInputText+1);">&#9660; See Abstract 
+					On The Map & Activate Abstract Highlighting &#9660;</button>
+				<br>
+				<p>
+					<b> Article Abstract:</b>
+				</p>
+
+				<div id="1TextDiv" class="inactiveDiv">Select a GeoCoder Name and click on Get Document to start geocoding.</div>
+
+				<br>
+				<!-- <button type="button" id="typeInBtn" class="btn btn-warning" onclick="getSelectedRange(activeInputText,'typeIn');">Type
+					In Name For Highlighted Text</button> -->
+				<br> <br>
+				<button type="button" id="evaluateBtn" class="btn btn-primary" onclick="evalCoding();">Evaluate Against Last Annotation</button>
+				<button type="button" id="displayAllCodingsBtn" class="btn btn-primary" onclick="displayAllCodings();">Display
+					All Previous Annotations</button>
+				<div id="infoDiv">
+					Useful Information:
+					<table id="infoTable"></table>
+				</div>
+
+				<br>
+			</div>
+
+			<div id="leftPaneDiv" class="col-md-5">
+				<!-- Input area -->
+				<div id="inputAreaDiv">
+					<span hidden> Project: </span> <select name="projectName" class="btn btn-info dropdown-toggle" type="button" data-toggle="dropdown"
+					 id="projectNameDropDown" onChange="resetUi();" hidden>
+						<option value="tweets">tweets</option>
+						<option value="papers" disabled>papers</option>
+					</select> <span> Name: </span> <select name="geoCoder" id="geoCoderDropDown" onChange="resetUi();" class="btn btn-info dropdown-toggle"
+					 type="button" data-toggle="dropdown">
+						<!-- <option value="none" disabled selected>Select</option> -->
+						<option value="Morteza">Morteza</option>
+						<option value="Jan">Jan</option>
+						<option value="Alan">Alan</option>
+						<option value="Scott">Scott</option>
+						<option value="JoshSt">Josh Stevens</option>
+						<option value="Josh">Connor</option>
+						<option value="Azita">Azita</option>
+						<option value="Nate">Nate</option>
+
+					</select> <span> Role: </span> <select name="role" class="btn btn-info dropdown-toggle" type="button" data-toggle="dropdown"
+					 id="roleDropDown" onChange="resetUi();">
+						<option value="CoderA">Coder A</option>
+						<option value="CoderB">Coder B</option>
+						<option value="CoderARevisit">Coder A - revisit</option>
+						<option value="CoderBRevisit">Coder B - revisit</option>
+					</select>
+
+					<button type="button" id="getTextButton" class="btn btn-primary" onclick="{fireXhrGetTweet();}">Get Document</button>
+
+
+					<br>
+
+
+					<textarea hidden name="inputText" id="tweetText" style="height: 50px" onkeyup="" placeholder="Click on Get Tweet to start GeoCoding!">    </textarea>
+
+
+					<!-- Main Body -->
+
+
+					<!-- The rest of the Input area -->
+
+
+					<button hidden type="button" id="submitTextButton" onclick="{fireXhr();document.getElementById('flagResultButton').disabled=false}">Submit
+						Text to:</button>
+					<select name="m" id="engineTextDropDown" class="btn btn-info dropdown-toggle" type="button" data-toggle="dropdown" onchange="">
+						<option value="stanfords">Geotxt w/ Stanford NER &
+							Improved Ranking</option>
+							<option value="cogcomp">Geotxt w/ CogComp NER &
+							Improved Ranking</option>
+							<option value="lingpipe">Geotxt w/ LingPipe NER &
+							Improved Ranking</option>
+							<option value="opennlp">Geotxt w/ OpenNlp NER &
+							Improved Ranking</option>
+						<option value="gates">Geotxt w/ Gate NER & Improved
+							Ranking</option>
+						<option value="stanfordh">Geotxt w/ Stanford NER &
+							Disambiguation</option>
+						<option value="gateh">Geotxt w/ Gate NER & Disambiguation</option>
+						<option value="stanford">Geotxt w/ Stanford NER Engine</option>
+						<option value="gate">Geotxt w/ Gate NER Engine</option>
+
+
+					</select>
+
+					<button hidden type="button" id="clearTextButton" onclick="{clearAllContent(document.getElementById('tweetText'));}">Clear
+						Text</button>
+
+				</div>
+
+				<!-- Map -->
+
+
+				<div id="map" class="map">
+					<button type="button" id="submitGcResultsButton" class="btnStyle btn btn-success" onclick="{subtmitGcResults(false);}" hidden>Submit
+							Document</button>
+					<button type="button" id="cancelAltBtn" class="btnStyle btn btn-success btn-xs" onclick="{mainWin.cancelSelectAlternate();}"
+					 hidden>Cancel & Keep Original Location</button>
+					<button type="button" id="notInLocDbBtn" class="btnStyle btn btn-danger btn-xs" hidden>Not In Locations Database</button>
+					<button type="button" id="advancedMapBtn" class="advancedBtnStyle btn btn-warning" hidden><b>Advanced Search</b></button>
+
+					<button type="button" id="fitMapBtn" class="btn btn-default fitBtnStyle" onclick="{fitMapBounds();}">Zoom
+							to All</button>
+
+					<button type="button" id="nextCatButton" class="btn btn-warning nextBtnStyle" onclick="{renderNext();}" hidden>&#62;&#62;</button>
+					<button type="button" id="previousCatButton" class="btn btn-warning previousBtnStyle" onclick="{renderPrevious();}" hidden>&#60;&#60;</button>
+				</div>
+				<div id="unlocatedMapDiv">If you see places in this box, it is because the system could not generate candidates for their location. Please click
+					on each and use Advanced Search to locate them.</div>
+				<div id="notInGeoNamesMapDiv">For place names listed in this box. you are sure that they do not exist in our locations database. If not, please use
+					advanced search to locate them.</div>
+
+
+				<P>Comments about this tweet:</P>
+
+				<textarea name="inputText" id="commentstTxt" style="width: 100%; height: 50px" onkeyup=""></textarea>
+				<br>
+
+				<button type="button" id="skipGcResultsButton" class="btn btn-danger btn-block" onclick="{subtmitGcResults(true);}" disabled>Click to Skip
+					This Document Because There Is A Problem</button>
+				<br> <br>
+
+			</div>
+
+
+			<br>
+		</div>
+		<!-- Contact -->
+		<br>
+		<div id="contact">
+			See <a href="https://dl.dropboxusercontent.com/u/102021713/amtwebinterface.html" target="_blank">(Geo)Coding Instructions</a>,
+			<a href="http://www.geonames.org/export/codes.html" target="_blank">GeoNames
+				Feature Codes</a>, or <a href="/api/" target="_blank">GeoTxt
+				documentation.</a> For questions, please contact <a href="mailto:karimzadeh@@psu.edu?subject=GeoTxtInquiry" target="_blank">Morteza Karimzadeh</a>			of the <a href="http://www.geovista.psu.edu/" target="_blank">GeoVISTA
+				Center</a>.
+		</div>
+	</div>
+
+
+	<div id="uncertainTagDialog" title="Choose a proper tag">
+		<p>You have added surrogates. You must select a tag to describe the type of the ambiguous place.</p>
+	</div>
+
+	<div id="globalUnhighlightDivId" title="Unhighlight/highlight all?"> </div>
+	<div id="cancelledDialogId" title="Warning!"> </div>
+
+	<div id="advancedSearchDiv" title="Advanced Search">
+		<span id="advancedSearchIntroId" class="help-block">Type in a name or alternative name. For example, typing in "New York City" will help you find the city in the database if the name that is mentioned in text is "NYC" or "Big Apple". </span>
+		<div class="input-group">
+			<!-- <label for="typeInNameId">(Alternative) Name</label> -->
+			<input id="typeInNameId" type="text" class="form-control" name="email" autocomplete="off" placeholder="Type in alternative name or nickname (optional) ">
+			<span class="help-block">If name is not provided, the name in original text will be used.</span>
+		</div>
+		<span class="help-block">The following are optional and may help you find the location easier:</span>
+		<div class="input-group"> <span class="input-group-addon">Feature Class <span style="color:brown">(Optional)</span></span>
+			<select id="fClassDropId" class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">
+				<option value="none"  selected>Select Location Type</option> 
+				<option value="none">All</option>
+				<option value="A">Country, state, region,...</option>
+				<option value="P">City, village,...</option>
+				<option value="L">Parks, area, ...</option>
+				<option value="H">Stream, lake, ...</option>
+				<option value="T">Mountain, hill, rock,... </option>
+				<option value="R">Road, railroad </option>
+				<option value="S">Spot, building, farm</option>
+				<option value="U">Undersea</option>
+				<option value="V">Forest, heath,...</option>				
+			</select>
+		</div>
+		<div class="input-group"> <span class="input-group-addon">Continent <span style="color:brown">(Optional)</span></span>
+			<select id="continentDropId" class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">
+				<option value="none"  selected>Select Continent</option> 
+				<option value="none">All</option>
+				<option value="Africa">Africa</option>
+				<option value="Asia">Asia</option>
+				<option value="Europe">Europe</option>
+				<option value="Oceania">Oceania (Australia)</option>
+				<option value="North America">North America</option>
+				<option value="South America">South America</option>
+				<option value="Antarctica">Antarctica</option>
+			</select>
+		</div>
+		<div class="input-group"> <span class="input-group-addon">Country <span style="color:brown">(Optional)</span></span>
+			<select id="countryDropId" class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">
+				<option value="none"   selected>Select Counrty</option> 
+				<option value="none">All</option>
+			</select>
+		</div>
+		<br>
+		<label><input  id="populationBoostCheckId" type="checkbox" value=""> Check this box to prioritize places with higher population.</label>
+	</div>
+
+</body>
+
+
+</html>

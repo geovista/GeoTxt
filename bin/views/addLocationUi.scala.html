@@ -1,0 +1,61 @@
+@(title: String)
+
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>@title</title>
+
+<script src=@routes.Assets.at("javascripts/jquery-3.2.1.min.js")></script>
+
+</head>
+
+	<textarea name="inputText" id="inputText"
+		style="width: 800px; height: 130px">
+name=
+population=0
+latitude=
+longitude=
+source=
+description=
+    </textarea>
+    <button type="button" id="submitTextButton"
+        onclick="{
+        	fireXhrLocation();
+        }">
+    Add GeoTxt location entry:</button>
+<br>
+
+<!-- Contact -->
+<div id="contact" style="width: 660px; height: 20px">
+	See <a href="/api/" target="_blank">documentation.</a> For questions,
+	please contact <a
+		href="mailto:karimzadeh@@psu.edu?subject=GeoTxtInquiry"
+		target="_blank">Morteza Karimzadeh</a> of the <a
+		href="http://www.geovista.psu.edu/" target="_blank">GeoVISTA
+		Center</a>.
+</div>
+<br>
+
+<script language="javascript" type="text/javascript">
+	//Fires an HTTP GET call using the XmlHttpRequest object  
+    function fireXhrLocation() {
+        var e = document.getElementById("inputText");
+        $.ajax({
+            async: true,
+            type: "POST",
+            url: "../api/geotxtAddEntry.json",
+            dataType: "text",
+            contentType: "text/plain; charset=utf-8",
+            data: e.value,
+            success: function (results) {
+                alert(JSON.stringify(results));
+            },
+            error: function () {
+                console.log("AJAX failed.");
+                alert("AJAX failed.");
+            }
+        });
+    }
+</script>

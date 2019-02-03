@@ -1,0 +1,236 @@
+@(message: String) @main("GeoTxt") {
+
+<!-- The rest of the Input area -->
+
+<button type="button" id="submitText" onclick="fireXhr();">Submit
+	Text to:</button>
+<select name="m" id="engineText">
+	<option value="stanford">Geotxt API with Stanford NER Engine</option>
+	<option value="gate">Geotxt API with Gate NER Engine</option>
+	<option value="stanfordE">Extract Entities with Stanford NER
+		Engine</option>
+	<option value="gateE">Extract Entities with Gate NER Engine</option>
+	<option value="geocode">GeoCode with GeoNames (one feature at
+		a time)</option>
+</select>
+<button type="button" id="clearText"
+	onclick="clearAllContent(document.getElementById('queryText'));">Clear
+	Text</button>
+<br>
+<br>
+
+
+<!-- Result Raw Response View -->
+
+<textarea name="resultText" id="resultView"
+	style="width: 800px; height: 140px"
+	placeholder="GeoJSON response will appear here after submitting valid text that contains location names!"
+	readonly>
+Only geographic features will be pinpointed on the map. You can see the complete GeoJSON response here after submitting text. 
+
+You can resize this area to inspect the response. Also, you may copy the response to http://json.parser.online.fr/ for a clearer view.
+
+This page is for demonstration purposes only! Try GeoTxt API at http://geotxt.org/v2/api/geotxt.json.
+</textarea>
+<br>
+<br>
+
+
+<!-- Map -->
+
+<div id="map" style="width: 800px; height: 400px"
+	style="visibility: hidden">Click on the features for a summary of
+	properties:</div>
+<br>
+
+
+<script language="javascript" type="text/javascript">
+	//Define map
+	var map = new L.Map('map');
+	var osm = new L.TileLayer('http://tile.osm.org/{z}/{x}/{y}.png');
+	map.fitWorld().addLayer(osm);
+	var layer = null;
+
+	//Clear the default contents of the input text area
+	function clearContents(element) {
+		var helper = "GeoTxt detects location name mentions in text and assigns geographic coordinates to those locations.";
+		if (element.value.substring(0, helper.length) == helper) {
+			element.value = '';
+		}
+	}
+
+	//Clear  contents of the input text area
+	function clearAllContent(element) {
+		element.value = '';
+	}
+
+	//zooms the map to the world level and deletes all the features (removes the layer)
+	function resetMap(map, layer) {
+		map.fitWorld();
+		if (layer != null) {
+			if (map.hasLayer(layer)) {
+				map.removeLayer(layer);
+			}
+		}
+	}
+
+	//Makes an XMLHttpRequest object based on the browser type
+	function makeHttpObject() {
+		try {
+			return new XMLHttpRequest();
+		} catch (error) {
+		}
+		try {
+			return new ActiveXObject("Msxml2.XMLHTTP");
+		} catch (error) {
+		}
+		try {
+			return new ActiveXObject("Microsoft.XMLHTTP");
+		} catch (error) {
+		}
+		throw new Error("Could not create HTTP request object.");
+	}
+
+	//declates an XMLHttpRequest object
+	var xhr = makeHttpObject();
+
+	//Processes the data received after the aysonchronous HTTP GET call
+	function processResponse() {
+		if (xhr.readyState == 4 && xhr.status == 200) {
+			resetMap(map);
+			var TheTextBox = document.getElementById("resultView");
+			TheTextBox.value = '';
+
+			//add the raw response to the resultView textbox
+			TheTextBox.value = xhr.responseText;
+
+			var fCollection = JSON.parse(xhr.responseText);
+
+			layer = L
+					.geoJson(
+							fCollection,
+							{
+								/*style: function(feature) {
+								 switch (feature.properties.type) {
+								 case 'location':
+								 return {color: "#ff0000"};
+								 case 'organization':
+								 return {color: "#0000ff"};
+								 }
+								 },*/
+								onEachFeature : function(feature, layer) {
+
+									var popUpContent = "<dl><dt>Name in text:</dt>"
+											+ "<dd><b>"
+											+ feature.properties.name
+											+ "</b></dd>"
+											+ "<dt>Toponym (geolocated to):</dt>"
+											+ "<dd><b>"
+											+ feature.properties.toponym
+											+ "</b></dd>"
+											//+ "<dt>Type:</dt>"
+											//+ "<dd><b>" + feature.properties.type + "</b></dd>"
+											+ "<dt>GeoNameId:</dt>"
+											+ "<dd><b><a href=\"http://ws.geonames.org/get?geonameId="
+											+ feature.properties.geoNameId
+											+ "&style=full\" target=\"_blank\">"
+											+ feature.properties.geoNameId
+											+ "</a></b></dd></dl>";
+
+									layer.bindPopup(popUpContent);
+
+									var labelContent = '';
+									if (feature.properties.name.toLowerCase() == feature.properties.toponym
+											.toLowerCase()) {
+										labelContent = "<FONT COLOR=\"#000099\">"
+												+ feature.properties.toponym
+												+ "</FONT>";
+									} else {
+										labelContent = "<FONT COLOR=\"#000099\">"
+												+ feature.properties.name
+														.charAt(0)
+														.toUpperCase()
+												+ feature.properties.name
+														.slice(1)
+												+ "</FONT>"
+												+ "<br>"
+												+ "<FONT COLOR=\"#990033\">"
+												+ feature.properties.toponym
+												+ "</FONT>";
+									}
+									layer.bindLabel(labelContent, {
+										noHide : true
+									}).addTo(map).showLabel();
+
+								}
+							}).addTo(map);
+
+			map.fitBounds(layer.getBounds());
+
+		} else {
+			resetMap(map, layer);
+			var TheTextBox = document.getElementById("resultView");
+			TheTextBox.value = '';
+		}
+	}
+
+	//Fires an HTTP GET call using the appropriate XmlHttpRequest object depending on the value of m 
+	function fireXhr() {
+		var e = document.getElementById("engineText");
+		var m = e.options[e.selectedIndex].value;
+
+		if (m == "gate" || m == "stanford") {
+			fireGeoTxt(m);
+		}
+
+		if (m == "gateE" || m == "stanfordE") {
+			var mEngine = m.substring(0, m.length - 1)
+			fireExtraction(mEngine);
+		}
+
+		if (m == "geocode") {
+			fireGeoCode();
+		}
+	}
+
+	//Call GeoTxt API
+	function fireGeoTxt(m) {
+		xhr.open("GET",
+				"api/geotxt.json?m="
+						+ m
+						+ "&q="
+						+ encodeURIComponent(document
+								.getElementById('queryText').value), true);
+		xhr.send(null);
+		xhr.onreadystatechange = processResponse;
+	}
+
+	/* function fireGeoTxt(m){
+	 xhr.open("GET", "/LandingPage/DumbGeoTxt", true);
+	 xhr.send(null);
+	 xhr.onreadystatechange = processResponse;                
+	 } */
+
+	//Call extraction API
+	function fireExtraction(m) {
+		xhr.open("GET",
+				"api/extract.json?m="
+						+ m
+						+ "&q="
+						+ encodeURIComponent(document
+								.getElementById('queryText').value), true);
+		xhr.send(null);
+		xhr.onreadystatechange = processResponse;
+	}
+
+	//Call geocoding API
+	function fireGeoCode() {
+		xhr.open("GET",
+				"api/geocode.json?q="
+						+ encodeURIComponent(document
+								.getElementById('queryText').value), true);
+		xhr.send(null);
+		xhr.onreadystatechange = processResponse;
+	}
+</script>
+}
